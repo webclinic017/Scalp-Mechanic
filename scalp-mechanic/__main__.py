@@ -14,10 +14,28 @@ $200/day
 """
 
 ## Imports
-import tradovate
+from __future__ import annotations
+import asyncio
+
+from utils.session import Session
 
 ## Constants
-scalp_mechanic = tradovate.Client()
+
+
+## Classes
+class Client:
+    """Scalp Mechanic Client"""
+
+    # -Constructor
+    def __init__(self) -> Client:
+        # -Account
+        self.id: int = 0
+        # -Async
+        self.loop: asyncio.AbstractEventLoop = asyncio.new_event_loop()
+        # -Connection
+        self.session: Session = Session(loop=self.loop)
+
 
 ## Body
-scalp_mechanic.run()
+client = Client()
+#client.run()
