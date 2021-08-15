@@ -24,14 +24,12 @@ class Session:
 
     # -Constructor
     def __init__(self, *, loop: Optional[AbstractEventLoop] = None) -> Session:
-        # -Connection
-        self.__session: Optional[ClientSession] = None
-        self.__socket: Optional[ClientWebSocketResponse] = None
-        # -Authentication
         self.authenticated: bool = False
         self.expiration: Optional[datetime] = None
-        # -Async
+        self.__session: Optional[ClientSession] = None
+        self.__socket: Optional[ClientWebSocketResponse] = None
         self.loop: AbstractEventLoop = loop if loop else asyncio.get_event_loop()
+        self.loop.run_until_complete(self.__async_init__())
 
     # -Dunder Methods
     def __del__(self) -> None:
