@@ -32,10 +32,23 @@ class Client:
         self.id: int = 0
         # -Async
         self.loop: asyncio.AbstractEventLoop = asyncio.new_event_loop()
-        # -Connection
         self.session: Session = Session(loop=self.loop)
+
+    # -Dunder Methods
+    def __del__(self) -> None:
+        del self.session
+
+    # -Instance Methods: Public
+    def run(self, _dict: dict[str, str]) -> None:
+        ''''''
+        self.loop.run_until_complete(self.session.__async_init__())
+
+    # -Instance Methods: Private
+    async def __async_init__(self) -> None:
+        '''Async initialization method'''
+        pass
 
 
 ## Body
 client = Client()
-#client.run()
+client.run("")

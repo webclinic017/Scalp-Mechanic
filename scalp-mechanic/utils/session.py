@@ -15,7 +15,7 @@ from typing import Optional
 import aiohttp
 from aiohttp import ClientSession, ClientWebSocketResponse
 
-from utils import urls
+from . import urls
 
 
 ## Classes
@@ -25,8 +25,6 @@ class Session:
     # -Constructor
     def __init__(self, *, loop: Optional[AbstractEventLoop] = None) -> Session:
         # -Connection
-        self.ready: bool = False
-        self.closed: bool = False
         self.__session: Optional[ClientSession] = None
         self.__socket: Optional[ClientWebSocketResponse] = None
         # -Authentication
@@ -35,25 +33,13 @@ class Session:
         # -Async
         self.loop: AbstractEventLoop = loop if loop else asyncio.get_event_loop()
 
-    # -Instance Methods: Public - Authorization
-    async def request_access_token(self, _dict: dict[str, str]) -> None:
-        ''''''
-        res = await self.__session.post(urls.auth_request, json=_dict)
-        res = await res.json()
-        pass
+    # -Dunder Methods
+    def __del__(self) -> None:
+        self.loop.run_until_complete(self.__async_del__())
 
-    async def renew_access_token(self):
-        ''''''
-        pass
+    async def __async_init__(self) -> None:
+        self.__socket = aiohttp.ClientSession(loop=self.loop, raise_for_status=True)
 
-    # -Instance Methods: Private
-    async def _init(self) -> None:
-        '''Async Module Initializion'''
-        self.__session = aiohttp.ClientSession()
-        self.__socket = await self.__session.ws_connect(urls.base_market_live)
-
-    async def _del(self) -> None:
-        '''Async Module Deletion'''
-        if self.closed:
-            return None
-        self.closed = True
+    async def __async_del__(self) -> None:
+        if self.__socket:
+            await self.__socket.close()
