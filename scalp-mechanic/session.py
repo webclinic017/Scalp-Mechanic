@@ -9,14 +9,14 @@
 from __future__ import annotations
 import asyncio
 import json
-from asyncio import AbstractEventLoop
+from asyncio import AbstractEventLoop, TimerHandle
 from datetime import datetime
 from typing import Optional
 
 import aiohttp
 from aiohttp import (
     ClientSession, ClientResponse,
-    ClientWebSocketResponse, WSMessage
+    ClientWebSocketResponse
 )
 
 from utils import timestamp_to_datetime, urls
@@ -34,6 +34,7 @@ class Session:
         self.authenticated: bool = False
         self.token_expiration: Optional[datetime] = None
         self.__session: Optional[ClientSession] = None
+        self._heartbeat_handle: Optional[TimerHandle] = None
         self.__socket: Optional[ClientWebSocketResponse] = None
         self.loop: AbstractEventLoop = loop if loop else asyncio.get_event_loop()
         self.loop.run_until_complete(self.__async_init__())
@@ -47,7 +48,10 @@ class Session:
         self.__socket = await self.__session.ws_connect(urls.base_market_live)
         if await self.__socket.receive_str() != 'o':
             raise WebsocketException()  # TODO: Better exception
-        self.request_number = 1
+        self._request_number = 0
+        self._heartbeat_handle = self.loop.call_at(
+            self.loop.time() + 2.5, self._send_heartbeat
+        )
 
     async def __async_del__(self) -> None:
         # TODO: Close method with better control
@@ -56,13 +60,20 @@ class Session:
             await self.__socket.close()
 
     # -Instance Methods: Private
+    def _send_heartbeat(self) -> None:
+        '''Send heartbeat packet through websocket connection'''
+        self.loop.create_task(self.__socket.send_str("[]"))
+        self._heartbeat_handle = self.loop.call_at(
+            self.loop.time() + 2.5, self._send_heartbeat
+        )
+
     async def _send_socket_request(
-        self, path: str, query: str = "", body: str = ""
+        self, url: str, query: str = "", body: str = ""
     ) -> None:
-        ''''''
-        req = f"{path}\n{self.request_number}\n{query}\n{body}"
-        self.request_number += 1
-        await self.__socket.send_str(req)
+        '''Send formatted request string through websocket'''
+        req = f"{url}\n{self._request_number}\n{query}\n{body}"
+        self._request_number += 1
+        self.__socket.send_str(req)
 
     async def _update_authorization(self, res: ClientResponse) -> dict[str, str]:
         '''Set authorization for active session'''
@@ -88,7 +99,7 @@ class Session:
         res = await self.__session.post(urls.auth_request, json=_dict)
         res_dict = await self._update_authorization(res)
         # -Market Token
-        await self.__socket.send_str(f"authorize\n0\n\n{res_dict['mdAccessToken']}")
+        await self._send_socket_request("authorize", body=res_dict['mdAccessToken'])
         #ws_res = json.loads((await self.__socket.receive()).data[1:])[0] -- one liner
         ws_res = await self.__socket.receive()
         ws_res_dict = json.loads(ws_res.data[1:])[0]
