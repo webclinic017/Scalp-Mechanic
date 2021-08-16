@@ -16,20 +16,15 @@ class Client:
 
     # -Constructor
     def __init__(self) -> Client:
-        # -Account
         self.id: int = 0
-        # -Async
         self.loop: asyncio.AbstractEventLoop = asyncio.new_event_loop()
         self.session: Session = Session(loop=self.loop)
-        self.loop.run_until_complete(self.__async_init__())
 
     # -Dunder Methods
     def __del__(self) -> None:
         del self.session
 
-    async def __async_init__(self) -> None:
-        pass
-
     # -Instance Methods
     def run(self, _dict: dict[str, str]) -> None:
-        pass
+        ''''''
+        self.loop.run_until_complete(self.session.request_access_token(_dict))

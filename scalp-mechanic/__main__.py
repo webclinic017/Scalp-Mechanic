@@ -14,9 +14,13 @@ $200/day
 """
 
 ## Imports
+from client import Client
+from utils.account import auth_dict
 
 ## Variables
+scalp_mechanic = Client()
 
 ## Functions
 
 ## Body
+scalp_mechanic.run(auth_dict)
