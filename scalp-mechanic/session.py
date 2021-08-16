@@ -32,7 +32,7 @@ class Session:
     # -Constructor
     def __init__(self, *, loop: Optional[AbstractEventLoop] = None) -> Session:
         self.authenticated: bool = False
-        self.expiration: Optional[datetime] = None
+        self.token_expiration: Optional[datetime] = None
         self.__session: Optional[ClientSession] = None
         self.__socket: Optional[ClientWebSocketResponse] = None
         self.loop: AbstractEventLoop = loop if loop else asyncio.get_event_loop()
@@ -50,6 +50,7 @@ class Session:
         self.request_number = 1
 
     async def __async_del__(self) -> None:
+        # TODO: Close method with better control
         if self.__session:
             await self.__session.close()
             await self.__socket.close()
@@ -57,39 +58,43 @@ class Session:
     # -Instance Methods: Private
     async def _send_socket_request(
         self, path: str, query: str = "", body: str = ""
-    ) -> WSMessage:
+    ) -> None:
         ''''''
         req = f"{path}\n{self.request_number}\n{query}\n{body}"
         self.request_number += 1
         await self.__socket.send_str(req)
-        return await self.__socket.receive()
 
-    async def _update_authorization(self, resp: ClientResponse) -> None:
-        '''Update authorization for active session'''
-        resp = await resp.json()
-        if 'errorText' in resp:
-            raise LoginInvalidException(resp['errorText'])
-        elif 'p-ticket' in resp:
+    async def _update_authorization(self, res: ClientResponse) -> dict[str, str]:
+        '''Set authorization for active session'''
+        res_dict = await res.json()
+        if 'errorText' in res_dict:
+            raise LoginInvalidException(res_dict['errorText'])
+        elif 'p-ticket' in res_dict:
             raise LoginCaptchaException(
-                resp['p-ticket'], int(resp['p-time']), bool(resp['p-captcha'])
+                res_dict['p-ticket'],
+                int(res_dict['p-time']),
+                bool(res_dict['p-captcha'])
             )
         # -Access Token
-        self.expiration = timestamp_to_datetime(resp['expirationTime'])
+        self.token_expiration = timestamp_to_datetime(res_dict['expirationTime'])
         self.__session.headers.update({
-            'AUTHORIZATION': "Bearer " + resp['accessToken']
+            'AUTHORIZATION': "Bearer " + res_dict['accessToken']
         })
-        # -Market Token
-        res = await self._send_socket_request('authorize', body=resp['mdAccessToken'])
-        res = json.loads(res.data[1:])[0]
-        if res['s'] != 200:
-            raise WebsocketException()  # TODO: Better exception
-        self.authenticated = True
+        return res_dict
 
     # -Instance Methods
     async def request_access_token(self, _dict: dict[str, str]) -> None:
         '''Request session authorization'''
         res = await self.__session.post(urls.auth_request, json=_dict)
-        await self._update_authorization(res)
+        res_dict = await self._update_authorization(res)
+        # -Market Token
+        await self.__socket.send_str(f"authorize\n0\n\n{res_dict['mdAccessToken']}")
+        #ws_res = json.loads((await self.__socket.receive()).data[1:])[0] -- one liner
+        ws_res = await self.__socket.receive()
+        ws_res_dict = json.loads(ws_res.data[1:])[0]
+        if ws_res_dict['s'] != 200:
+            raise WebsocketException()  # TODO: Better exception
+        self.authenticated = True
 
     async def renew_access_token(self) -> None:
         '''Renew session authorization'''
