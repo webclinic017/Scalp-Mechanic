@@ -32,8 +32,13 @@ class SessionException(Exception):
     pass
 
 
+class WebsocketError(SessionException):
+    """Unable to establish websocket"""
+    pass
+
+
 class InvalidLoginException(SessionException):
-    """Invalid session login  exception"""
+    """Invalid session login exception"""
 
     def __init__(self, message: str) -> InvalidLoginException:
         super().__init__(message)
@@ -57,26 +62,37 @@ class Session:
 
     async def __async_init__(self) -> None:
         self.__session = aiohttp.ClientSession(loop=self.loop, raise_for_status=True)
+        self.__socket = await self.__session.ws_connect(urls.base_market_live)
+        if await self.__socket.receive_str() != 'o':
+            raise WebsocketError()
 
     async def __async_del__(self) -> None:
         if self.__session:
             await self.__session.close()
+            await self.__socket.close()
 
-    # -Instance Methods
-    async def request_access_token(self, _dict: dict[str, str]) -> None:
-        res = await self.__session.post(urls.auth_request, json=_dict)
-        await self._update_authorization(res)
-
+    # -Instance Methods: Private
     async def _update_authorization(self, resp: ClientResponse) -> None:
+        ''''''
         resp = await resp.json()
-        print(resp)
         if 'errorText' in resp:
             raise InvalidLoginException(resp['errorText'])
         elif 'p-ticket' in resp:
             raise InvalidLoginException(
                 f"Unable to authorize - ticket: {resp['p-ticket']}:{resp['p-time']}"
             )
+        self.authenticated = True
         self.expiration = timestamp_to_datetime(resp['expirationTime'])
         self.__session.headers.update({
             'AUTHORIZATION': "Bearer " + resp['accessToken']
         })
+
+    # -Instance Methods
+    async def request_access_token(self, _dict: dict[str, str]) -> None:
+        ''''''
+        res = await self.__session.post(urls.auth_request, json=_dict)
+        await self._update_authorization(res)
+
+    async def renew_access_token(self) -> None:
+        ''''''
+        pass

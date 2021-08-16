@@ -7,7 +7,7 @@
 from __future__ import annotations
 import asyncio
 
-from utils.session import Session
+from session import Session
 
 
 ## Classes
