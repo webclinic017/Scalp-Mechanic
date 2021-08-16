@@ -61,7 +61,7 @@ class Session:
 
     # -Instance Methods: Private
     def _send_heartbeat(self) -> None:
-        '''Send heartbeat packet through websocket connection'''
+        '''Send heartbeat packet through websocket'''
         self.loop.create_task(self.__socket.send_str("[]"))
         self._heartbeat_handle = self.loop.call_at(
             self.loop.time() + 2.5, self._send_heartbeat
@@ -73,7 +73,7 @@ class Session:
         '''Send formatted request string through websocket'''
         req = f"{url}\n{self._request_number}\n{query}\n{body}"
         self._request_number += 1
-        self.__socket.send_str(req)
+        await self.__socket.send_str(req)
 
     async def _update_authorization(self, res: ClientResponse) -> dict[str, str]:
         '''Set authorization for active session'''
