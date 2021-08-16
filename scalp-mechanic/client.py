@@ -2,6 +2,8 @@
 ## [Tradovate] Scalp-Mechanic    ##
 ## Written By: Ryan Smith        ##
 ##-------------------------------##
+## Scalp Mechanic Client Class   ##
+##-------------------------------##
 
 ## Imports
 from __future__ import annotations
