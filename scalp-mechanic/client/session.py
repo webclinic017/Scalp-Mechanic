@@ -69,10 +69,6 @@ class Session:
             await self._socket.close()
 
     # -Instance Methods: Private
-    def _receive_authorization(self, result: Task):
-        '''Recieving authorization renewal request through session'''
-        self._timer_authorization()
-
     def _send_authorization(self) -> None:
         '''Send authorization renewal request through session'''
         print(f"Current token: {self._session.headers['AUTHORIZATION']}")
@@ -123,7 +119,11 @@ class Session:
         })
         return res_dict
 
-    # -Instance Methods: Temporary
+    # -Instance Methods
+    async def get(self, url: str, *args, **kwargs) -> dict[str, str]:
+        res = await self._session.request('GET', url, *args, **kwargs)
+        return await res.json()
+
     def get_token_duration(self, offset: Optional[timedelta] = None) -> timedelta:
         '''Get timedelta of remaining time until token is expired'''
         time_remaining = self._token_expiration - datetime.now(timezone.utc)
@@ -138,7 +138,15 @@ class Session:
             return time >= self._token_expiration - offset
         return time >= self._token_expiration
 
-    # -Instance Methods
+    async def post(self, url: str, *args, **kwargs) -> dict[str, str]:
+        res = await self._session.request('POST', url, *args, **kwargs)
+        return await res.json()
+
+    async def renew_access_token(self) -> None:
+        '''Renew session authorization'''
+        res = await self._session.post(urls.auth_renew)
+        await self._update_authorization(res)
+
     async def request_access_token(self, dict_: dict[str, str]) -> None:
         '''Request session authorization'''
         res = await self._session.post(urls.auth_request, json=dict_)
@@ -152,8 +160,3 @@ class Session:
         self.authenticated = True
         if self._authorization_renewal:
             self._timer_authorization()
-
-    async def renew_access_token(self) -> None:
-        '''Renew session authorization'''
-        res = await self._session.post(urls.auth_renew)
-        await self._update_authorization(res)
