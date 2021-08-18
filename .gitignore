@@ -8,5 +8,4 @@ __pycache__
 *.sublime-*
 
 # Private
-account.py
 account.ini
