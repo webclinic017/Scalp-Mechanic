@@ -52,21 +52,12 @@ class Session:
         self._loop.run_until_complete(self.__async_init__())
 
     # -Dunder Methods
-    def __del__(self) -> None:
-        self._loop.run_until_complete(self.__async_del__())
-
     async def __async_init__(self) -> None:
         self._session = aiohttp.ClientSession(loop=self._loop, raise_for_status=True)
         self._socket = await self._session.ws_connect(urls.base_market_live)
         if await self._socket.receive_str() != 'o':
             raise WebsocketException()  # TODO: Better exception
         self._timer_heartbeat()
-
-    async def __async_del__(self) -> None:
-        # TODO: Close method with better control
-        if self._session:
-            await self._session.close()
-            await self._socket.close()
 
     # -Instance Methods: Private
     def _send_authorization(self) -> None:
@@ -120,6 +111,13 @@ class Session:
         return res_dict
 
     # -Instance Methods
+    async def close(self) -> None:
+        if not self._session:
+            return None
+
+        await self._socket.close()
+        await self._session.close()
+
     async def get(self, url: str, *args, **kwargs) -> dict[str, str]:
         res = await self._session.request('GET', url, *args, **kwargs)
         return await res.json()
