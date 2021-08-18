@@ -13,13 +13,25 @@ $200/day + commissions
 """
 
 ## Imports
-from client import Client
-from utils.account import auth_dict
+from configparser import ConfigParser
 
-## Variables
+from client import Client
+
+## Constants
+account = ConfigParser()
 scalp_mechanic = Client()
 
 ## Functions
 
 ## Body
-scalp_mechanic.run(auth_dict)
+account.read("account.ini")
+authorization = {
+    'name': account['authentication']['username'],
+    'password': account['authentication']['password'],
+    'deviceId': account['application']['device_id'],
+    'cid': account['authentication']['cid'],
+    'sec': account['authentication']['security_key'],
+    'appID': account['application']['name'],
+    'appVersion': account['application']['version'],
+}
+scalp_mechanic.run(authorization)
