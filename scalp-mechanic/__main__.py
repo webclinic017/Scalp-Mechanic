@@ -10,7 +10,6 @@ $200/day + commissions
 040 points MES -- $1.60/trade
 010 points NQ  -- $4.64/trade
 100 points MNQ -- $1.60/trade
-
 """
 
 ## Imports
