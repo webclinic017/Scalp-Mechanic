@@ -23,16 +23,16 @@ from client import Client
 logging.basicConfig(
     filename=f"logs/{date.today()}.log",
     encoding='utf-8',
-    format="[%(asctime)s:%(msecs)d]%(levelname)s: %(message)s",
+    format="[%(asctime)s:%(msecs)d](%(name)s)%(levelname)s: %(message)s",
     datefmt="%Y/%m/%d %H:%M:%S",
     level=logging.DEBUG
 )
-client_log = logging.getLogger("Scalp-Mechanic")
+log = logging.getLogger("Scalp-Mechanic")
 credentials = ConfigParser()
 
 
 ## Classes
-class Scalp_Mechanic():
+class Scalp_Mechanic(Client):
     """Scalp-Mechanic Tradovate Client"""
 
     async def on_connect(self) -> None:
