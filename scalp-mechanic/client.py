@@ -2,7 +2,7 @@
 ## [Tradovate] Scalp-Mechanic    ##
 ## Written By: Ryan Smith        ##
 ##-------------------------------##
-## Tradovate Client              ##
+## Tradovate Client Class        ##
 ##-------------------------------##
 
 ## Imports
