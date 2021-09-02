@@ -12,6 +12,7 @@ import logging
 from asyncio import (
     AbstractEventLoop, Task, TimerHandle
 )
+from datetime import timedelta
 from typing import Optional
 
 from profile import Profile
@@ -44,7 +45,8 @@ class Client(Profile):
         if result:
             result.result()
         self._authorization_handle = self._loop.call_later(
-            self._session.get_token_duration().total_seconds() - 1000
+            self._session.get_token_duration(timedelta(minutes=10)).total_seconds(),
+            self._renew_authorization
         )
 
     # -Instance Methods: Public
@@ -52,6 +54,7 @@ class Client(Profile):
         '''Initialize and setup auto-renewal for client authorization'''
         self._socket = await TradovateWebSocket.from_client(self, urls.base_market_live)
         self.id = await self._session.request_access_token(dict_, self._socket)
+        print(self.authenticated)
         if renew_authorization:
             self._timer_authorization()
 
@@ -59,19 +62,24 @@ class Client(Profile):
         await self._socket.close()
         await self._session.close()
 
-    def get_loop(self) -> Session:
-        '''Returns async event loop'''
-        return self._loop
-
-    def get_session(self) -> Session:
-        '''Returns client active session'''
-        return self._session
-
-    def run(self, dict_: dict[str, str], *, renew_authorization: bool = True) -> None:
+    def run(self, dict_: dict[str, str], *, renew: bool = True) -> None:
         '''Run client main loop'''
-        self._loop.run_until_complete(self.authorize(dict_, renew_authorization))
+        self._loop.run_until_complete(self.authorize(dict_, renew))
         try:
             self._loop.run_forever()
         except KeyboardInterrupt:
             self._loop.run_until_complete(self.close())
             self._loop.stop()
+
+    # -Properties
+    @property
+    def authenticated(self):
+        return self._session.authenticated and self._socket.authenticated
+
+    @property
+    def loop(self) -> AbstractEventLoop:
+        return self._loop
+
+    @property
+    def session(self) -> Session:
+        return self._session

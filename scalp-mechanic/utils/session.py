@@ -106,8 +106,8 @@ class TradovateWebSocket:
         cls, client: Client, url: str, *, loop: Optional[AbstractEventLoop] = None
     ) -> TradovateWebSocket:
         '''Create a WebSocket from a Client object'''
-        loop = loop if loop else client.get_loop()
-        ws = await client.get_session().create_websocket(url)
+        loop = loop if loop else client.loop
+        ws = await client.session.create_websocket(url)
         return cls(ws, loop=loop)
 
     @classmethod
@@ -116,7 +116,7 @@ class TradovateWebSocket:
     ) -> TradovateWebSocket:
         '''Create a WebSocket from a Session object'''
         # For Tradovate Library Purposes
-        loop = loop if loop else session.get_loop()
+        loop = loop if loop else session.loop
         ws = await session.create_websocket(url)
         return cls(ws, loop=loop)
 
@@ -141,16 +141,15 @@ class Session:
         res_dict = await res.json()
         # -Invalid Credentials
         if 'errorText' in res_dict:
-            log.error("Login failure - " + res_dict['errorText'])
             self.authenticated = False
             raise LoginInvalidException(res_dict['errorText'])
         # -Invalid Captcha
         elif 'p-ticket' in res_dict:
-            ticket = res_dict['p-ticket']
-            retry = int(res_dict['p-time'])
-            captcha = bool(res_dict['p-captcha'])
             self.authenticated = False
-            raise LoginCaptchaException(ticket, retry, captcha)
+            raise LoginCaptchaException(
+                res_dict['p-ticket'], int(res_dict['p-time']),
+                bool(res_dict['p-captcha'])
+            )
         # -Access Token
         self.authenticated = True
         self._token_expiration = timestamp_to_datetime(res_dict['expirationTime'])
@@ -208,3 +207,8 @@ class Session:
     async def create_websocket(self, url: str, *args, **kwargs) -> ClientWebSocket:
         '''Create an aiohttp websocket response'''
         return await self._session.ws_connect(url, *args, **kwargs)
+
+    # -Properties
+    @property
+    def loop(self) -> AbstractEventLoop:
+        return self._loop
