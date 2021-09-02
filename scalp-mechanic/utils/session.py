@@ -73,9 +73,7 @@ class TradovateWebSocket:
         ws_res_dict = json.loads(ws_res.data[1:])
         return ws_res_dict
 
-    async def _socket_send(
-        self, url: str, query: str = "", body: str = ""
-    ) -> None:
+    async def _socket_send(self, url: str, query: str = "", body: str = "") -> None:
         '''Send formatted request string to websocket'''
         req = f"{url}\n{self._request}\n{query}\n{body}"
         self._request += 1
