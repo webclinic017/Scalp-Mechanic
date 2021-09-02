@@ -44,9 +44,9 @@ class Client(Profile):
         '''Timer handler for authorization renewal'''
         if result:
             result.result()
+        time = self._session.token_duration - timedelta(minutes=10)
         self._authorization_handle = self._loop.call_later(
-            self._session.get_token_duration(timedelta(minutes=10)).total_seconds(),
-            self._renew_authorization
+            time.total_seconds(), self._renew_authorization
         )
 
     # -Instance Methods: Public
@@ -54,7 +54,6 @@ class Client(Profile):
         '''Initialize and setup auto-renewal for client authorization'''
         self._socket = await TradovateWebSocket.from_client(self, urls.base_market_live)
         self.id = await self._session.request_access_token(dict_, self._socket)
-        print(self.authenticated)
         if renew_authorization:
             self._timer_authorization()
 

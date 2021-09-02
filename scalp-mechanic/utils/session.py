@@ -127,6 +127,7 @@ class Session:
     # -Constructor
     def __init__(self, *, loop: Optional[AbstractEventLoop] = None) -> Session:
         self.authenticated: bool = False
+        self.token_expiration: Optional[datetime] = None
         self._loop: AbstractEventLoop = loop if loop else asyncio.get_event_loop()
         self._session: Optional[ClientSession] = None
         self._loop.create_task(self.__async_init__())
@@ -152,7 +153,7 @@ class Session:
             )
         # -Access Token
         self.authenticated = True
-        self._token_expiration = timestamp_to_datetime(res_dict['expirationTime'])
+        self.token_expiration = timestamp_to_datetime(res_dict['expirationTime'])
         self._session.headers.update({
             'AUTHORIZATION': "Bearer " + res_dict['accessToken']
         })
@@ -166,24 +167,6 @@ class Session:
     async def get(self, url: str, *args, **kwargs) -> dict[str, str]:
         res = await self._session.request('GET', url, *args, **kwargs)
         return await res.json()
-
-    def get_loop(self) -> AbstractEventLoop:
-        '''Returns async event loop'''
-        return self._loop
-
-    def get_token_duration(self, offset: Optional[timedelta] = None) -> timedelta:
-        '''Get timedelta of remaining time until token is expired'''
-        time_remaining = self._token_expiration - datetime.now(timezone.utc)
-        if offset:
-            return time_remaining - offset
-        return time_remaining
-
-    def is_token_expired(self, offset: Optional[timedelta] = None) -> bool:
-        '''Returns true if current time is past the token expiration datetime'''
-        time = datetime.now(timezone.utc)
-        if offset:
-            return time >= self._token_expiration - offset
-        return time >= self._token_expiration
 
     async def post(self, url: str, *args, **kwargs) -> dict[str, str]:
         res = await self._session.request('POST', url, *args, **kwargs)
@@ -212,3 +195,11 @@ class Session:
     @property
     def loop(self) -> AbstractEventLoop:
         return self._loop
+
+    @property
+    def token_duration(self) -> timedelta:
+        return self.token_expiration - datetime.now(timezone.utc)
+
+    @property
+    def token_expired(self) -> bool:
+        return datetime.now(timezone.utc) >= self.token_expiration
