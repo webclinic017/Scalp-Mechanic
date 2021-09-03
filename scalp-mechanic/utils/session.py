@@ -39,6 +39,11 @@ log = logging.getLogger(__name__)
 ## Classes
 class TradovateWebSocket:
     """Tradovate WebSocket"""
+    # Library Rewrite: 4 websocket types:
+    # -Live Account Control
+    # -Demo Account Control
+    # -Live Market Data
+    # -Market Replay Data
 
     # -Constructor
     def __init__(
@@ -97,6 +102,20 @@ class TradovateWebSocket:
     async def close(self) -> None:
         if self._socket:
             await self._socket.close()
+
+    async def request(
+        self, url: str, *, body: Optional[dict[str, str]] = None, **kwargs
+    ) -> None:
+        query_ = ""
+        body_ = ""
+        if kwargs:
+            fields = []
+            for k, v in kwargs.items():
+                fields.append(f"{k}={v}")
+            query_ = '&'.join(fields)
+        if body:
+            body_ = json.dumps(body)
+        await self._socket_send(url, query_, body_)
 
     # -Class Methods
     @classmethod
