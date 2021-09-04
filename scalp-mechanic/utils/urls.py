@@ -14,10 +14,10 @@ _domains = (
     #"://md-demo.tradovateapi.com/v1/",  # -Demo Market Functionality
     #"://replay.tradovateapi.com/v1",    # -Replay Market Functionality
 )
-http_base_demo, http_base_live, http_base_market, http_base_market_demo = [
+http_base_demo, http_base_live, http_base_market = [
     f"https{domain}" for domain in _domains
 ]
-wss_base_demo, wss_base_live, wss_base_market, wss_base_market_demo = [
+wss_base_demo, wss_base_live, wss_base_market = [
     f"wss{domain}websocket" for domain in _domains
 ]
 # -Authorization
