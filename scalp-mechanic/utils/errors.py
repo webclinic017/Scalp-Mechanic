@@ -1,40 +1,61 @@
+##-------------------------------##
+## [Tradovate] Scalp-Mechanic    ##
+## Written By: Ryan Smith        ##
+##-------------------------------##
+## Tradovate Exceptions          ##
+##-------------------------------##
+
 ## Imports
 from __future__ import annotations
 
 
-## Variables
-__all__ = [
-
-]
-
-
 ## Classes
 class SessionException(Exception):
-    """Base exception class for Session"""
-    pass
-
-
-class WebsocketException(SessionException):
-    """Base exception class for Websocket"""
+    """Base Session exception"""
     pass
 
 
 class LoginException(SessionException):
-    """Base exception class for login failures"""
+    """Base Session exception for authentication"""
     pass
 
 
 class LoginInvalidException(LoginException):
-    """Login exception for invalid requests"""
+    """Session exception for authentication invalid credentials"""
 
+    # -Constructor
     def __init__(self, message: str) -> LoginInvalidException:
         super().__init__(message)
 
 
 class LoginCaptchaException(LoginException):
-    """Login exception for rate limiting"""
+    """Session exception for authentication rate limiting and captcha"""
 
+    # -Constructor
     def __init__(self, ticket: str, time: int, captcha: bool) -> LoginInvalidException:
-        message = ("Unable to login due to rate limiting. Ticket: "
-                  f"{ticket}, {time} seconds. Captcha required: {captcha}")
+        message = ("Unable to login due to rate limiting. Ticket #"
+                  f"{ticket}, {time} seconds. Captcha required: {captcha}.")
         super().__init__(message)
+
+
+class WebSocketException(Exception):
+    """Base WebSocket exception"""
+    pass
+
+
+class WebSocketOpenException(Exception):
+    """WebSocket exception for open failures"""
+
+    # -Constructor
+    def __init__(self, url: str) -> WebSocketOpenException:
+        super().__init__(f"Unable to open websocket with address: {url}.")
+
+
+class WebSocketAuthorizationException(Exception):
+    """WebSocket exception for authentication"""
+
+    # -Constructor
+    def __init__(self, url: str, token: str) -> WebSocketOpenException:
+        super().__init__(
+            f"Unable to authorize websocket with address: {url}. Token used: {token}."
+        )
