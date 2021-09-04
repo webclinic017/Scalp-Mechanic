@@ -8,8 +8,10 @@
 ## Imports
 from __future__ import annotations
 
+from .session import Session
+from utils.typing import CredentialAuthDict
+
 from utils import urls
-from utils.session import Session
 
 
 ## Classes
@@ -19,23 +21,19 @@ class Profile:
     # -Constructor
     def __init__(self, session: Session) -> Profile:
         self.id: int = 0
-        self._session: Session = session
+        self._session = session
 
-    # -Instance Methods
-    async def authorize(self, dict_: dict[str, str]) -> bool:
+    # -Instance Methods: Public
+    async def authorize(self, authorization: CredentialAuthDict) -> bool:
         '''Initialize Profile authorization'''
-        self.id = await self._session.request_access_token(dict_)
-        return self._session.authenticated
+        self.id = await self._session.request_access_token(authorization)
+        return self.authenticated
 
     async def me(self) -> dict[str, str]:
-        '''Profile user details'''
+        '''Profile details'''
         return await self._session.get(urls.http_auth_me)
 
-    # -Properties
+    # -Property
     @property
     def authenticated(self) -> bool:
         return self._session.authenticated
-
-    @property
-    def session(self) -> Session:
-        return self._session
