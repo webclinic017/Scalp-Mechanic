@@ -8,77 +8,63 @@
 ## Imports
 from __future__ import annotations
 import asyncio
-import logging
-from asyncio import (
-    AbstractEventLoop, Task, TimerHandle
-)
 from datetime import timedelta
 from typing import Optional
 
 from profile import Profile
-from utils import urls
-from utils.session import Session, TradovateWebSocket
-
-## Constants
-log = logging.getLogger(__name__)
+from profile.session import Session
+from utils.typing import CredentialAuthDict
 
 
 ## Classes
 class Client(Profile):
-    """Tradovate Client Class"""
+    """Tradovate Client"""
 
     # -Constructor
     def __init__(self) -> Client:
-        self._loop: AbstractEventLoop = asyncio.new_event_loop()
-        super().__init__(Session(loop=self._loop))
-        self._authorization_handle: Optional[TimerHandle] = None
+        self.id: int = 0
+        self._loop: asyncio.AbstractEventLoop = asyncio.new_event_loop()
+        self._session: Session = Session(loop=self._loop)
+        self._handle_auto_renewal: Optional[asyncio.TimerHandle] = None
 
     # -Instance Methods: Private
-    def _renew_authorization(self) -> None:
-        '''Send authorization renewal request'''
-        log.debug("Auto-renewing client authorization")
+    def _auth_renewal(self) -> None:
+        '''Send authorization auto-renewal request'''
         task = self._loop.create_task(self._session.renew_access_token())
-        task.add_done_callback(self._timer_authorization)
+        task.add_done_callback(self._auth_renewal_timer)
 
-    def _timer_authorization(self, result: Optional[Task] = None) -> None:
-        '''Timer handler for authorization renewal'''
+    def _auth_renewal_timer(self, result: Optional[asyncio.Task] = None) -> None:
+        '''Timer handler for authorization auto-renewal'''
         if result:
             result.result()
         time = self._session.token_duration - timedelta(minutes=10)
-        self._authorization_handle = self._loop.call_later(
-            time.total_seconds(), self._renew_authorization
+        self._handle_auto_renewal = self._loop.call_later(
+            time.total_seconds(), self._auth_renewal
         )
 
     # -Instance Methods: Public
-    async def authorize(self, dict_: dict[str, str], renew_authorization: bool) -> None:
-        '''Initialize and setup auto-renewal for client authorization'''
-        self._socket = await TradovateWebSocket.from_client(self, urls.base_market_live)
-        self.id = await self._session.request_access_token(dict_, self._socket)
-        if renew_authorization:
-            self._timer_authorization()
+    async def authorize(
+        self, auth: CredentialAuthDict, auto_renew: bool = True
+    ) -> None:
+        '''Initialize Client authorization and auto-renewal'''
+        self.id = await self._session.request_access_token(auth)
+        if auto_renew:
+            self._auth_renewal_timer()
+        return self.authenticated
 
     async def close(self) -> None:
-        await self._socket.close()
         await self._session.close()
 
-    def run(self, dict_: dict[str, str], *, renew: bool = True) -> None:
-        '''Run client main loop'''
-        self._loop.run_until_complete(self.authorize(dict_, renew))
+    def run(
+        self, auth: CredentialAuthDict,
+        *, auto_renew: bool = True
+    ) -> None:
+        '''Run client loop'''
+        self._loop.run_until_complete(self.authorize(auth, auto_renew))
         try:
             self._loop.run_forever()
         except KeyboardInterrupt:
             self._loop.run_until_complete(self.close())
-            self._loop.stop()
+            self._loop.close()
 
-    # -Properties
-    @property
-    def authenticated(self):
-        return self._session.authenticated and self._socket.authenticated
-
-    @property
-    def loop(self) -> AbstractEventLoop:
-        return self._loop
-
-    @property
-    def session(self) -> Session:
-        return self._session
+    # -Property
