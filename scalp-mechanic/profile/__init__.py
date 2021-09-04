@@ -8,6 +8,7 @@
 ## Imports
 from __future__ import annotations
 
+from utils import urls
 from utils.session import Session
 
 
@@ -25,6 +26,10 @@ class Profile:
         '''Initialize Profile authorization'''
         self.id = await self._session.request_access_token(dict_)
         return self._session.authenticated
+
+    async def me(self) -> dict[str, str]:
+        '''Profile user details'''
+        return await self._session.get(urls.http_auth_me)
 
     # -Properties
     @property
