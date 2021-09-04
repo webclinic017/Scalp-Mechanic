@@ -9,4 +9,4 @@ __pycache__
 
 # Private
 account.ini
-*.logs
+*.log
