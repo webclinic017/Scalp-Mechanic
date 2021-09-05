@@ -5,6 +5,10 @@
 ## URL Endpoints               ##
 ##-----------------------------##
 
+## Imports
+from __future__ import annotations
+from enum import Enum
+
 ## Constants
 # -Base URLs
 _domains = (
@@ -29,3 +33,33 @@ http_auth_renew = http_base_auth + "renewaccesstoken"
 http_auth_me = http_base_auth + "me"
 # -Websocket
 wss_auth = "authorize"
+
+
+## Functions
+# -Account
+def get_account(endpoint: ENDPOINT, id_: int) -> str:
+    """URL Endpoint for getting single account"""
+    url = "account/item"
+    if endpoint == ENDPOINT.WEBSOCKET:
+        return url
+    return endpoint.value + url + f"/?id={id_}"
+
+
+def get_accounts(
+    endpoint: ENDPOINT, *, ids: list[int] = None, list_: bool = True
+) -> str:
+    """URL Endpoint for getting multiple accounts - by id or full list"""
+    url = "account/list" if list_ else "account/items"
+    if endpoint == ENDPOINT.WEBSOCKET:
+        return url
+    if ids and not list_:
+        url += "/?ids=" + ",".join([str(i) for i in ids])
+    return endpoint.value + url
+
+
+## Classes
+class ENDPOINT(Enum):
+    """URL Endpoint Enum"""
+    LIVE = http_base_live
+    DEMO = http_base_demo
+    WEBSOCKET = None
