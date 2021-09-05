@@ -10,7 +10,6 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 import aiohttp
 
@@ -29,13 +28,11 @@ class Session:
     """Tradovate Session"""
 
     # -Constructor
-    def __init__(
-        self, *, loop: Optional[asyncio.AbstractEventLoop] = None
-    ) -> Session:
+    def __init__(self, *, loop: asyncio.AbstractEventLoop | None = None) -> Session:
         self.authenticated: bool = False
-        self.token_expiration: Optional[datetime] = None
+        self.token_expiration: datetime | None = None
         self._loop = loop if loop else asyncio.get_event_loop()
-        self._aiosession: Optional[aiohttp.ClientSession] = None
+        self._aiosession: aiohttp.ClientSession | None = None
         self._loop.create_task(self.__ainit__())
 
     # -Dunder Methods

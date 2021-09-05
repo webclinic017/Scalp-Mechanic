@@ -7,7 +7,6 @@
 
 ## Imports
 from __future__ import annotations
-from typing import Optional
 
 import aiohttp
 
@@ -29,7 +28,7 @@ class Profile:
 
     # -Instance Methods: Private
     async def _get_account_by_ids(
-        self, *, id_: Optional[int] = None, ids: Optional[list[int]] = None
+        self, *, id_: int | None = None, ids: list[int] | None = None
     ) -> Account | list[Account]:
         '''Returns account or list of accounts from ID url endpoint'''
         # -URLs
@@ -47,9 +46,11 @@ class Profile:
             pass
         else:
             if id_:
+                # -Create Account
                 account['endpoint'] = urls.ENDPOINT.LIVE
                 return account
             for acc in account:
+                # -Create Account
                 acc['endpoint'] = urls.ENDPOINT.LIVE
                 accounts.append(acc)
         # -Demo
@@ -59,9 +60,11 @@ class Profile:
             pass
         else:
             if id_:
+                # -Create Account
                 account['endpoint'] = urls.ENDPOINT.DEMO
                 return account
             for acc in account:
+                # -Create Account
                 acc['endpoint'] = urls.ENDPOINT.DEMO
                 accounts.append(acc)
         # -Return
@@ -75,11 +78,13 @@ class Profile:
         # -Live
         url = urls.get_accounts(urls.ENDPOINT.LIVE)
         for account in await self._session.get(url):
+            # -Create Account
             account['endpoint'] = urls.ENDPOINT.LIVE
             accounts.append(account)
         # -Demo
         url = urls.get_accounts(urls.ENDPOINT.DEMO)
         for account in await self._session.get(url):
+            # -Create Account
             account['endpoint'] = urls.ENDPOINT.DEMO
             accounts.append(account)
         return accounts
@@ -91,9 +96,8 @@ class Profile:
         return self.authenticated
 
     async def get_account(
-        self, *, id_: Optional[int] = None,
-        name: Optional[str] = None,
-        nickname: Optional[str] = None
+        self, *, id_: int | None = None,
+        name: str | None = None, nickname: str | None = None
     ) -> Account:
         '''Get account by id, name, or nickname'''
         account = None
@@ -114,9 +118,8 @@ class Profile:
         return None
 
     async def get_accounts(
-        self, *, ids: Optional[list[int]] = None,
-        names: Optional[list[str]] = None,
-        nicknames: Optional[list[str]] = None
+        self, *, ids: list[int] | None = None,
+        names: list[str] | None = None, nicknames: list[str] | None = None
     ) -> list[Account]:
         '''Get accounts by ids, names, or nicknames or full account list'''
         accounts = []

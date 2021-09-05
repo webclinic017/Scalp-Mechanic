@@ -9,7 +9,6 @@
 from __future__ import annotations
 import asyncio
 from datetime import timedelta
-from typing import Optional
 
 from profile import Profile
 from profile.session import Session
@@ -25,7 +24,7 @@ class Client(Profile):
         self.id: int = 0
         self._loop: asyncio.AbstractEventLoop = asyncio.new_event_loop()
         self._session: Session = Session(loop=self._loop)
-        self._handle_auto_renewal: Optional[asyncio.TimerHandle] = None
+        self._handle_auto_renewal: asyncio.TimerHandle | None = None
 
     # -Instance Methods: Private
     def _auth_renewal(self) -> None:
@@ -33,7 +32,7 @@ class Client(Profile):
         task = self._loop.create_task(self._session.renew_access_token())
         task.add_done_callback(self._auth_renewal_timer)
 
-    def _auth_renewal_timer(self, result: Optional[asyncio.Task] = None) -> None:
+    def _auth_renewal_timer(self, result: asyncio.Task | None = None) -> None:
         '''Timer handler for authorization auto-renewal'''
         if result:
             result.result()
