@@ -116,7 +116,7 @@ class Profile:
     # -Property
     @property
     def authenticated(self) -> bool:
-        return self._session.authenticated
+        return self._session.authenticated.is_set()
 
     @property
     def session(self) -> Session:
