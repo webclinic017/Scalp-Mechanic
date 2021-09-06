@@ -46,14 +46,13 @@ def get_account(endpoint: ENDPOINT, id_: int) -> str:
 
 
 def get_accounts(
-    endpoint: ENDPOINT, *, ids: list[int] = None, list_: bool = True
+    endpoint: ENDPOINT, ids: list[int] | None = None
 ) -> str:
     """URL Endpoint for getting multiple accounts - by id or full list"""
-    url = "account/list" if list_ else "account/items"
+    url = "account/items" if ids else "account/list"
     if endpoint == ENDPOINT.WEBSOCKET:
         return url
-    if ids and not list_:
-        url += "/?ids=" + ",".join([str(i) for i in ids])
+    url += "/?ids=" + ','.join(str(i) for i in ids) if ids else ""
     return endpoint.value + url
 
 
