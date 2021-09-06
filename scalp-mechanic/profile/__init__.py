@@ -28,45 +28,12 @@ class Profile:
         self._session = session
 
     # -Instance Methods: Private
-    async def _get_account_by_ids(
-        self, *, id_: int | None = None, ids: list[int] | None = None
-    ) -> Account | tuple[Account]:
-        '''Returns account or list of accounts from ID url endpoint'''
-        # -TODO: DRY
-        # -URLs
-        if id_ is not None:
-            live_url = urls.get_account(urls.ENDPOINT.LIVE, id_=id_)
-            demo_url = urls.get_account(urls.ENDPOINT.DEMO, id_=id_)
-        else:
-            accounts = []
-            live_url = urls.get_accounts(urls.ENDPOINT.LIVE, ids=ids)
-            demo_url = urls.get_accounts(urls.ENDPOINT.DEMO, ids=ids)
-        # -Live
-        try:
-            account = await self._session.get(live_url)
-        except aiohttp.ClientResponseError:
-            pass
-        else:
-            if id_:
-                return await Account.from_profile(self, account, urls.ENDPOINT.LIVE)
-            for acc in account:
-                acc = await Account.from_profile(self, acc, urls.ENDPOINT.LIVE)
-                accounts.append(acc)
-        # -Demo
-        try:
-            account = await self._session.get(demo_url)
-        except aiohttp.ClientResponseError:
-            pass
-        else:
-            if id_:
-                return await Account.from_profile(self, account, urls.ENDPOINT.DEMO)
-            for acc in account:
-                acc = await Account.from_profile(self, acc, urls.ENDPOINT.DEMO)
-                accounts.append(acc)
-        # -Return
-        if ids and accounts:
-            return tuple(accounts)
-        return None
+    async def _get_accounts(self) -> AsyncGenerator[Account, None]:
+        '''Returns full list of accounts from live+demo endpoints'''
+        async for account in self._get_accounts_by_endpoint(urls.ENDPOINT.LIVE):
+            yield account
+        async for account in self._get_accounts_by_endpoint(urls.ENDPOINT.DEMO):
+            yield account
 
     async def _get_accounts_by_endpoint(
         self, endpoint: urls.ENDPOINT
@@ -75,12 +42,31 @@ class Profile:
         for account in await self._session.get(urls.get_accounts(endpoint)):
             yield await Account.from_profile(self, account, endpoint)
 
-    async def _get_accounts(self) -> AsyncGenerator[Account, None]:
-        '''Returns full list of accounts from live+demo endpoints'''
-        async for account in self._get_accounts_by_endpoint(urls.ENDPOINT.LIVE):
-            yield account
-        async for account in self._get_accounts_by_endpoint(urls.ENDPOINT.DEMO):
-            yield account
+    async def _get_account_by_id(
+        self, ids: int | list[int]
+    ) -> Account | tuple[Account]:
+        '''Returns Account or list of Accounts from ID or IDs'''
+        accounts = []
+        for endpoint in [urls.ENDPOINT.LIVE, urls.ENDPOINT.DEMO]:
+            # -URL handling
+            if isinstance(ids, int):
+                url = urls.get_account(endpoint, ids)
+            else:
+                url = urls.get_accounts(endpoint, ids)
+            # -Account handling
+            try:
+                result = await self._session.get(url)
+            except aiohttp.ClientResponseError:
+                result = None
+            # -Result Handling
+            if result:
+                if isinstance(ids, int):
+                    return await Account.from_profile(self, result, endpoint)
+                for account in result:
+                    accounts.append(await Account.from_profile(self, account, endpoint))
+        if accounts:
+            return accounts
+        return None
 
     # -Instance Methods: Public
     async def authorize(self, authorization: CredentialAuthDict) -> bool:
@@ -94,7 +80,7 @@ class Profile:
     ) -> Account | None:
         '''Get account by id, name, or nickname'''
         if id_ is not None:
-            return await self._get_account_by_ids(id_=id_)
+            return await self._get_account_by_id(id_)
         async for account in self._get_accounts():
             if account.name == name:
                 return account
@@ -109,13 +95,13 @@ class Profile:
         '''Get accounts by ids, names, or nicknames or full account list'''
         # -TODO: Async Generator?
         if ids:
-            return await self._get_account_by_ids(ids=ids)
-        if names or nicknames:
+            return await self._get_account_by_id(ids)
+        elif names or nicknames:
             accounts = []
             async for account in self._get_accounts():
-                if account.name in names:
+                if names and account.name in names:
                     accounts.append(account)
-                elif account.nickname and account.nickname in nicknames:
+                elif nicknames and account.nickname and account.nickname in nicknames:
                     accounts.append(account)
             if accounts:
                 return tuple(accounts)
