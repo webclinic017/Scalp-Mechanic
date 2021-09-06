@@ -7,6 +7,7 @@
 
 ## Imports
 from __future__ import annotations
+import logging
 from typing import TYPE_CHECKING
 
 from .session import Session
@@ -14,6 +15,9 @@ from utils import urls
 from utils.typing import AccountDict
 if TYPE_CHECKING:
     from . import Profile
+
+## Constants
+log = logging.getLogger(__name__)
 
 
 ## Classes
@@ -24,13 +28,14 @@ class Account:
     def __init__(
         self, id_: int, profile_id: int, name: str,
         session: Session, endpoint: urls.ENDPOINT, *,
-        nickname: str | None = None
+        nickname: str | None = None,  # loop: asyncio.AbstractEventLoop | None = None,
     ) -> Account:
         self.id: int = id_
         self.profile_id: int = profile_id
         self.name: str = name
         self.nickname: str | None = nickname
         self.endpoint: urls.ENDPOINT = endpoint
+        #self._loop: asyncio.AbstractEventLoop = loop if loop else self._session.loop
         self._session: Session = session
 
     # -Dunder Methods
@@ -44,10 +49,10 @@ class Account:
     async def from_profile(
         cls, profile: Profile, account: AccountDict, endpoint: urls.ENDPOINT
     ) -> Account:
-        ''''''
-        cls_ = cls(
+        '''Create account from Profile parameters'''
+        log.debug(f"Getting account {account['id']}")
+        return cls(
             account['id'], account['userId'], account['name'],
             profile.session, endpoint,
             nickname=account['nickname'] if 'nickname' in account else None,
         )
-        return cls_
