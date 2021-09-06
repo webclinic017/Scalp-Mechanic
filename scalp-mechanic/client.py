@@ -11,7 +11,8 @@ import asyncio
 from datetime import timedelta
 
 from profile import Profile
-from profile.session import Session
+from profile.session import Session, WebSocket
+from utils import urls
 from utils.typing import CredentialAuthDict
 
 
@@ -41,21 +42,18 @@ class Client(Profile):
         '''Initialize Client authorization and auto-renewal'''
         self.id = await self._session.request_access_token(auth)
         if auto_renew:
-            self._loop.create_task(self._auth_renewal())
-        return self.authenticated
+            self._loop.create_task(self._auth_renewal(), name="client-renewal")
 
     async def close(self) -> None:
         await self._session.close()
 
-    def run(
-        self, auth: CredentialAuthDict, *, auto_renew: bool = True
-    ) -> None:
+    def run(self, auth: CredentialAuthDict, *, auto_renew: bool = True) -> None:
         '''Run client loop'''
         self._loop.run_until_complete(self.authorize(auth, auto_renew))
         try:
             self._loop.run_forever()
         except KeyboardInterrupt:
+            for task in asyncio.all_tasks(loop=self._loop):
+                task.cancel()
             self._loop.run_until_complete(self.close())
             self._loop.close()
-
-    # -Property
