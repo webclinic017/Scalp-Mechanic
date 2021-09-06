@@ -12,7 +12,7 @@ import aiohttp
 
 from .account import Account
 from .session import Session
-from utils.typing import CredentialAuthDict
+from utils.typing import CredentialAuthDict, MeAuthDict
 
 from utils import urls
 
@@ -46,12 +46,9 @@ class Profile:
             pass
         else:
             if id_:
-                # -Create Account
-                account['endpoint'] = urls.ENDPOINT.LIVE
-                return account
+                return await Account.from_profile(self, account, urls.ENDPOINT.LIVE)
             for acc in account:
-                # -Create Account
-                acc['endpoint'] = urls.ENDPOINT.LIVE
+                acc = await Account.from_profile(self, acc, urls.ENDPOINT.LIVE)
                 accounts.append(acc)
         # -Demo
         try:
@@ -60,34 +57,26 @@ class Profile:
             pass
         else:
             if id_:
-                # -Create Account
-                account['endpoint'] = urls.ENDPOINT.DEMO
-                return account
+                return await Account.from_profile(self, account, urls.ENDPOINT.DEMO)
             for acc in account:
-                # -Create Account
-                acc['endpoint'] = urls.ENDPOINT.DEMO
+                acc = await Account.from_profile(self, acc, urls.ENDPOINT.DEMO)
                 accounts.append(acc)
         # -Return
         if ids and accounts:
             return accounts
         return None
 
-    async def _get_full_account_list(self) -> list[Account]:
-        '''Returns full list of accounts dictionary - live+demo'''
-        accounts = []
-        # -Live
-        url = urls.get_accounts(urls.ENDPOINT.LIVE)
-        for account in await self._session.get(url):
-            # -Create Account
-            account['endpoint'] = urls.ENDPOINT.LIVE
-            accounts.append(account)
-        # -Demo
-        url = urls.get_accounts(urls.ENDPOINT.DEMO)
-        for account in await self._session.get(url):
-            # -Create Account
-            account['endpoint'] = urls.ENDPOINT.DEMO
-            accounts.append(account)
-        return accounts
+    async def _get_accounts_by_endpoint(self, endpoint: urls.ENDPOINT) -> list[Account]:
+        '''Returns full list of accounts from given endpoint'''
+        for account in await self._session.get(urls.get_accounts(endpoint)):
+            yield await Account.from_profile(self, account, endpoint)
+
+    async def _get_accounts(self) -> list[Account]:
+        '''Returns full list of accounts from live+demo endpoints'''
+        async for account in self._get_accounts_by_endpoint(urls.ENDPOINT.LIVE):
+            yield account
+        async for account in self._get_accounts_by_endpoint(urls.ENDPOINT.DEMO):
+            yield account
 
     # -Instance Methods: Public
     async def authorize(self, authorization: CredentialAuthDict) -> bool:
@@ -100,21 +89,16 @@ class Profile:
         name: str | None = None, nickname: str | None = None
     ) -> Account:
         '''Get account by id, name, or nickname'''
-        account = None
         if id_:
             account = await self._get_account_by_ids(id_=id_)
             if account:
                 return account
             return None
-        for account_ in await self._get_full_account_list():
-            if account_['name'] == name:
-                account = account_
-                break
-            elif 'nickname' in account_ and account_['nickname'] == nickname:
-                account = account_
-                break
-        if account:
-            return account
+        for account in await self._get_accounts():
+            if account.name == name:
+                return account
+            elif account.nickname and account.nickname == nickname:
+                return account
         return None
 
     async def get_accounts(
@@ -128,12 +112,12 @@ class Profile:
             if accounts:
                 return accounts
             return None
-        for account in await self._get_full_account_list():
+        async for account in self._get_accounts():
             if names:
-                if account['name'] in names:
+                if account.name in names:
                     accounts.append(account)
             elif nicknames:
-                if 'nickname' in account and account['nickname'] in nicknames:
+                if account.nickname and account.nickname in nicknames:
                     accounts.append(account)
             else:
                 accounts.append(account)
@@ -142,7 +126,7 @@ class Profile:
             return accounts
         return None
 
-    async def me(self) -> dict[str, str]:
+    async def me(self) -> MeAuthDict:
         '''Profile details'''
         return await self._session.get(urls.http_auth_me)
 
