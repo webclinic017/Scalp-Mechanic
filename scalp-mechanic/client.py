@@ -27,19 +27,12 @@ class Client(Profile):
         self._handle_auto_renewal: asyncio.TimerHandle | None = None
 
     # -Instance Methods: Private
-    def _auth_renewal(self) -> None:
+    async def _auth_renewal(self) -> None:
         '''Send authorization auto-renewal request'''
-        task = self._loop.create_task(self._session.renew_access_token())
-        task.add_done_callback(self._auth_renewal_timer)
-
-    def _auth_renewal_timer(self, result: asyncio.Task | None = None) -> None:
-        '''Timer handler for authorization auto-renewal'''
-        if result:
-            result.result()
-        time = self._session.token_duration - timedelta(minutes=10)
-        self._handle_auto_renewal = self._loop.call_later(
-            time.total_seconds(), self._auth_renewal
-        )
+        while self.authenticated:
+            time = self._session.token_duration - timedelta(minutes=10)
+            await asyncio.sleep(time.total_seconds())
+            await self._session.renew_access_token()
 
     # -Instance Methods: Public
     async def authorize(
@@ -48,15 +41,14 @@ class Client(Profile):
         '''Initialize Client authorization and auto-renewal'''
         self.id = await self._session.request_access_token(auth)
         if auto_renew:
-            self._auth_renewal_timer()
+            self._loop.create_task(self._auth_renewal())
         return self.authenticated
 
     async def close(self) -> None:
         await self._session.close()
 
     def run(
-        self, auth: CredentialAuthDict,
-        *, auto_renew: bool = True
+        self, auth: CredentialAuthDict, *, auto_renew: bool = True
     ) -> None:
         '''Run client loop'''
         self._loop.run_until_complete(self.authorize(auth, auto_renew))
