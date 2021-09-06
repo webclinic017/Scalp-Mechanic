@@ -47,7 +47,7 @@ class Account:
     # Class Methods
     @classmethod
     async def from_profile(
-        cls, profile: Profile, account: AccountDict, endpoint: urls.ENDPOINT
+        cls, account: AccountDict, endpoint: urls.ENDPOINT, profile: Profile
     ) -> Account:
         '''Create account from Profile parameters'''
         log.debug(f"Getting account {account['id']}")

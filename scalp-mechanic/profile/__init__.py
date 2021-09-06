@@ -40,7 +40,7 @@ class Profile:
     ) -> AsyncGenerator[Account, None]:
         '''Returns full list of accounts from given endpoint'''
         for account in await self._session.get(urls.get_accounts(endpoint)):
-            yield await Account.from_profile(self, account, endpoint)
+            yield await Account.from_profile(account, endpoint, self)
 
     async def _get_account_by_id(
         self, ids: int | list[int]
@@ -61,11 +61,11 @@ class Profile:
             # -Result Handling
             if result:
                 if isinstance(ids, int):
-                    return await Account.from_profile(self, result, endpoint)
+                    return await Account.from_profile(result, endpoint, self)
                 for account in result:
-                    accounts.append(await Account.from_profile(self, account, endpoint))
+                    accounts.append(await Account.from_profile(account, endpoint, self))
         if accounts:
-            return accounts
+            return tuple(accounts)
         return None
 
     # -Instance Methods: Public
