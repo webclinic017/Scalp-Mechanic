@@ -12,6 +12,7 @@ import json
 import logging
 from asyncio import AbstractEventLoop
 from datetime import datetime, timedelta, timezone
+from typing import Callable
 
 import aiohttp
 from aiohttp import ClientWebSocketResponse as ClientWebSocket
@@ -77,8 +78,8 @@ class Session:
 
     # -Instance Methods: Public
     async def close(self) -> None:
-        self.authenticated = False
         await self._aiosession.close()
+        self.authenticated.clear()
 
     async def create_websocket(self, url: str, *args, **kwargs) -> ClientWebSocket:
         '''Return an aiohttp WebSocket'''
@@ -103,7 +104,6 @@ class Session:
         log.debug("Session event 'request'")
         res = await self._aiosession.post(urls.http_auth_request, json=auth)
         res_dict = await self._update_authorization(res)
-        # -WebSockets
         if account_websockets:
             for account_websocket in account_websockets:
                 await account_websocket.authorize(res_dict['accessToken'])
@@ -166,11 +166,12 @@ class WebSocket:
             await asyncio.sleep(2.5)
             await self._aiowebsocket.send_str("[]")
 
-    async def _socket_recieve(self) -> dict[str, str]:
-        '''Recieve dictionary object from aiowebsocket'''
+    async def _socket_recieve(self) -> None:
+        '''Recieve dictionary object or None from aiowebsocket'''
         ws_res = await self._aiowebsocket.receive()
-        ws_res_dict = json.loads(ws_res.data[1:])
-        return ws_res_dict
+        if ws_res.data[0] == 'a':
+            return json.loads(ws_res.data[1:])
+        return None
 
     async def _socket_send(self, url: str, query: str = "", body: str = "") -> None:
         '''Send formatted request string to aiowebsocket'''
@@ -182,19 +183,32 @@ class WebSocket:
     async def authorize(self, token: str) -> None:
         '''Request WebSocket authorization'''
         await self._socket_send(urls.wss_auth, body=token)
-        ws_res = (await self._socket_recieve())[0]
-        if ws_res['s'] != 200:
+        ws_res = (await self.poll_message())[0]
+        if not ws_res or ws_res['s'] != 200:
             raise WebSocketAuthorizationException(self.url, token)
         self.authenticated.set()
 
     async def close(self) -> None:
-        if self._aiowebsocket:
+        if self.connected.is_set():
             await self._aiowebsocket.close()
+        self.connected.clear()
+        self.authenticated.clear()
+
+    async def poll_message(self) -> None:
+        '''Recieve dictionary object or None from aiowebsocket'''
+        ws_res = await self._aiowebsocket.receive()
+        init_ = ws_res.data[0]
+        if init_ == 'a':
+            return json.loads(ws_res.data[1:])
+        elif init_ == 'c':
+            raise aiohttp.ServerDisconnectedError()
+        return None
 
     async def request(
         self, url: str, *, body: dict[str, str] | None = None, **kwargs
     ) -> None:
-        ''''''
+        '''Send a formatted request to aiowebsocket'''
+        log.debug(f"WebSocket[{self.id}] event '{url}'")
         query = ""
         body = json.dumps(body) if body else ""
         if kwargs:
@@ -204,8 +218,7 @@ class WebSocket:
                     val = ','.join(str(i) for i in val)
                 fields.append(f"{key}={val}")
             query = '&'.join(fields)
-        req = f"{url}\n{self._request}\n{query}\n{body}"
-        print(req)
+        await self._socket_send(url, query, body)
 
     # -Class Methods
     @classmethod

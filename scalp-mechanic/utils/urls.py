@@ -25,14 +25,17 @@ wss_base_live, wss_base_demo, wss_base_market = [
     f"wss{domain}websocket" for domain in _domains
 ]
 # -Authorization
-# -HTTP[Live Only]
+#  -HTTP[Live Only]
 http_base_auth = http_base_live + "auth/"
 http_auth_oauth = http_base_auth + "oauthtoken"
 http_auth_request = http_base_auth + "accesstokenrequest"
 http_auth_renew = http_base_auth + "renewaccesstoken"
 http_auth_me = http_base_auth + "me"
-# -Websocket
+#  -Websocket
 wss_auth = "authorize"
+# -User
+#  -Websocket
+wss_user_sync = "user/syncrequest"
 
 
 ## Functions

@@ -37,12 +37,6 @@ class Client(Profile):
         self._mdreplay: WebSocket | None = None
 
     # -Instance Methods: Private
-    async def _authorize(self) -> None:
-        '''Coroutine for waiting for all authentication setup'''
-        await self._session.authenticated.wait()
-        for websocket in self._websockets:
-            await websocket.authenticated.wait()
-
     def _dispatch(self, event: str, *args, **kwargs) -> None:
         '''Dispatch task for event name'''
         log.debug(f"Client event '{event}'")
@@ -55,11 +49,24 @@ class Client(Profile):
             self._loop.create_task(coro(*args, **kwargs))
 
     async def _renewal(self) -> None:
-        '''Send authorization auto-renewal request'''
+        '''Task for Session authorization renewal loop'''
         while self._session.authenticated.is_set():
             time = self._session.token_duration - timedelta(minutes=10)
             await asyncio.sleep(time.total_seconds())
             await self._session.renew_access_token()
+
+    async def _run(
+        self, auth: CredentialAuthDict, auto_renew: bool,
+        live: bool, demo: bool, mdlive: bool
+    ) -> None:
+        '''Private client loop run method'''
+        await self.create_websockets(live, demo, mdlive)
+        await self.authorize(auth, auto_renew)
+        await self.authorizion_hold()
+        await self.sync_websockets()
+        for websocket in self._websockets:
+            self._loop.create_task(self.process_message(websocket))
+        self._dispatch('connect')
 
     # -Instance Methods: Public
     async def authorize(
@@ -72,17 +79,19 @@ class Client(Profile):
         )
         if auto_renew:
             self._loop.create_task(self._renewal(), name="client-renewal")
-        await self._authorize()
-        self._dispatch('connect')
+
+    async def authorizion_hold(self) -> None:
+        '''Wait for all authentication setup to be finished'''
+        await self._session.authenticated.wait()
+        for websocket in self._websockets:
+            await websocket.authenticated.wait()
 
     async def close(self) -> None:
         for websocket in self._websockets:
             await websocket.close()
         await self._session.close()
 
-    async def init_websockets(
-        self, live: bool, demo: bool, mdlive: bool
-    ) -> None:
+    async def create_websockets(self, live: bool, demo: bool, mdlive: bool) -> None:
         '''Initialize Client WebSockets'''
         self._live = (
             await WebSocket.from_session(urls.wss_base_live, self._session)
@@ -97,16 +106,24 @@ class Client(Profile):
             if mdlive else None
         )
 
+    async def process_message(self, websocket: WebSocket) -> None:
+        '''Task for WebSocket loop'''
+        while websocket.connected.is_set():
+            msg = await websocket.poll_message()
+            if not msg:
+                continue
+            print(msg)
+
     def run(
         self, auth: CredentialAuthDict, *, auto_renew: bool = True,
         live_websocket: bool = True, demo_websocket: bool = True,
         mdlive_websocket: bool = True
     ) -> None:
-        '''Run client loop'''
-        self._loop.run_until_complete(self.init_websockets(
-            live_websocket, demo_websocket, mdlive_websocket
+        '''Public client loop run method'''
+        self._loop.run_until_complete(self._run(
+            auth, auto_renew, live_websocket,
+            demo_websocket, mdlive_websocket
         ))
-        self._loop.run_until_complete(self.authorize(auth, auto_renew))
         try:
             self._loop.run_forever()
         except KeyboardInterrupt:
@@ -114,6 +131,10 @@ class Client(Profile):
                 task.cancel()
             self._loop.run_until_complete(self.close())
             self._loop.close()
+
+    async def sync_websockets(self) -> None:
+        for websocket in self._websockets_account:
+            await websocket.request(urls.wss_user_sync, body={'users': [self.id]})
 
     # -Properties: Private
     @property
