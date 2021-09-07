@@ -1,5 +1,5 @@
 ##-------------------------------##
-## [Tradovate] Scalp-Mechanic    ##
+## [Tradovate]Scalp-Mechanic     ##
 ## Written By: Ryan Smith        ##
 ##-------------------------------##
 ## Tradovate Profile Class       ##
