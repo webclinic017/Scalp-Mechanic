@@ -37,13 +37,13 @@ wss_auth = "authorize"
 wss_user_sync = "user/syncrequest"
 # -Market
 wss_market_sub = "md/subscribeQuote"
-wss_market_unsub = "md/unsubscribeQuote"
+wss_market_usub = "md/unsubscribeQuote"
 wss_market_dom_sub = "md/subscribeDOM"
-wss_market_dom_unsub = "md/unsubscribeDOM"
+wss_market_dom_usub = "md/unsubscribeDOM"
 wss_market_histogram_sub = "md/subscribeHistogram"
-wss_market_histogram_unsub = "md/unsubscribeHistogram"
+wss_market_histogram_usub = "md/unsubscribeHistogram"
 wss_market_chart_sub = "md/getChart"
-wss_market_chart_unsub = "md/cancelChart"
+wss_market_chart_usub = "md/cancelChart"
 
 
 ## Functions
