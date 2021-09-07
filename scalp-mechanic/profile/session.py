@@ -166,13 +166,6 @@ class WebSocket:
             await asyncio.sleep(2.5)
             await self._aiowebsocket.send_str("[]")
 
-    async def _socket_recieve(self) -> None:
-        '''Recieve dictionary object or None from aiowebsocket'''
-        ws_res = await self._aiowebsocket.receive()
-        if ws_res.data[0] == 'a':
-            return json.loads(ws_res.data[1:])
-        return None
-
     async def _socket_send(self, url: str, query: str = "", body: str = "") -> None:
         '''Send formatted request string to aiowebsocket'''
         req = f"{url}\n{self._request}\n{query}\n{body}"
