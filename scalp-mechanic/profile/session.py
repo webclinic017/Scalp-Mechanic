@@ -67,7 +67,7 @@ class Session:
                 bool(res_dict['p-captcha'])
             )
         # -Access Token
-        log.debug("Authenticated session successfully")
+        log.debug("Session event 'authorized'")
         self.authenticated.set()
         self.token_expiration = timestamp_to_datetime(res_dict['expirationTime'])
         self._aiosession.headers.update({
@@ -90,7 +90,7 @@ class Session:
 
     async def renew_access_token(self) -> None:
         '''Renew Session authorization'''
-        log.debug("Renewing session token")
+        log.debug("Session event 'renew'")
         res = await self._aiosession.post(urls.http_auth_renew)
         await self._update_authorization(res)
 
@@ -100,7 +100,7 @@ class Session:
         market_websockets: tuple[WebSocket] | None = None,
     ) -> int:
         '''Request Session authorization'''
-        log.debug("Requesting session token")
+        log.debug("Session event 'request'")
         res = await self._aiosession.post(urls.http_auth_request, json=auth)
         res_dict = await self._update_authorization(res)
         # -WebSockets

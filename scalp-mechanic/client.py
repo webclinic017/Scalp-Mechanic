@@ -8,12 +8,16 @@
 ## Imports
 from __future__ import annotations
 import asyncio
+import logging
 from datetime import timedelta
 
 from profile import Profile
 from profile.session import Session, WebSocket
 from utils import urls
 from utils.typing import CredentialAuthDict
+
+## Constants
+log = logging.getLogger(__name__)
 
 
 ## Classes
@@ -33,6 +37,23 @@ class Client(Profile):
         self._mdreplay: WebSocket | None = None
 
     # -Instance Methods: Private
+    async def _authorize(self) -> None:
+        '''Coroutine for waiting for all authentication setup'''
+        await self._session.authenticated.wait()
+        for websocket in self._websockets:
+            await websocket.authenticated.wait()
+
+    def _dispatch(self, event: str, *args, **kwargs) -> None:
+        '''Dispatch task for event name'''
+        log.debug(f"Client event '{event}'")
+        method = "on_" + event
+        try:
+            coro = getattr(self, method)
+        except AttributeError:
+            pass
+        else:
+            self._loop.create_task(coro(*args, **kwargs))
+
     async def _renewal(self) -> None:
         '''Send authorization auto-renewal request'''
         while self._session.authenticated.is_set():
@@ -51,6 +72,8 @@ class Client(Profile):
         )
         if auto_renew:
             self._loop.create_task(self._renewal(), name="client-renewal")
+        await self._authorize()
+        self._dispatch('connect')
 
     async def close(self) -> None:
         for websocket in self._websockets:
@@ -58,7 +81,7 @@ class Client(Profile):
         await self._session.close()
 
     async def init_websockets(
-        self, live: bool, demo: bool, mdlive: bool, mddemo: bool, mdreplay: bool
+        self, live: bool, demo: bool, mdlive: bool
     ) -> None:
         '''Initialize Client WebSockets'''
         self._live = (
@@ -77,13 +100,11 @@ class Client(Profile):
     def run(
         self, auth: CredentialAuthDict, *, auto_renew: bool = True,
         live_websocket: bool = True, demo_websocket: bool = True,
-        mdlive_websocket: bool = True, mddemo_websocket: bool = False,
-        mdreplay_websocket: bool = False
+        mdlive_websocket: bool = True
     ) -> None:
         '''Run client loop'''
         self._loop.run_until_complete(self.init_websockets(
-            live_websocket, demo_websocket, mdlive_websocket,
-            mddemo_websocket, mdreplay_websocket
+            live_websocket, demo_websocket, mdlive_websocket
         ))
         self._loop.run_until_complete(self.authorize(auth, auto_renew))
         try:
@@ -94,7 +115,7 @@ class Client(Profile):
             self._loop.run_until_complete(self.close())
             self._loop.close()
 
-    # -Properties
+    # -Properties: Private
     @property
     def _websockets(self) -> tuple[WebSocket]:
         websockets = []
@@ -135,3 +156,13 @@ class Client(Profile):
         if websockets:
             return tuple(websockets)
         return None
+
+    # -Properties: Authenticated
+    @property
+    def authenticated(self) -> bool:
+        if not self._session.authenticated.is_set():
+            return False
+        for websocket in self._websockets:
+            if not websocket.authenticated.is_set():
+                return False
+        return True
