@@ -1,5 +1,5 @@
 ##-------------------------------##
-## [Tradovate] Scalp-Mechanic    ##
+## [Tradovate]Scalp-Mechanic     ##
 ## Written By: Ryan Smith        ##
 ##-------------------------------##
 ## Tradovate Session Classes     ##
@@ -12,7 +12,6 @@ import json
 import logging
 from asyncio import AbstractEventLoop
 from datetime import datetime, timedelta, timezone
-from typing import Callable
 
 import aiohttp
 from aiohttp import ClientWebSocketResponse as ClientWebSocket
@@ -20,7 +19,8 @@ from aiohttp import ClientWebSocketResponse as ClientWebSocket
 from utils import timestamp_to_datetime, urls
 from utils.errors import (
     LoginInvalidException, LoginCaptchaException,
-    WebSocketOpenException, WebSocketAuthorizationException
+    WebSocketOpenException, WebSocketAuthorizationException,
+    WebSocketClosedException
 )
 from utils.typing import CredentialAuthDict
 
@@ -194,7 +194,7 @@ class WebSocket:
         if init_ == 'a':
             return json.loads(ws_res.data[1:])
         elif init_ == 'c':
-            raise aiohttp.ServerDisconnectedError()
+            raise WebSocketClosedException(self.url)
         return None
 
     async def request(
@@ -202,8 +202,6 @@ class WebSocket:
     ) -> None:
         '''Send a formatted request to aiowebsocket'''
         log.debug(f"WebSocket[{self.id}] event '{url}'")
-        query = ""
-        body = json.dumps(body) if body else ""
         if kwargs:
             fields = []
             for key, val in kwargs.items():
@@ -211,6 +209,9 @@ class WebSocket:
                     val = ','.join(str(i) for i in val)
                 fields.append(f"{key}={val}")
             query = '&'.join(fields)
+        else:
+            query = ""
+        body = json.dumps(body) if body else ""
         await self._socket_send(url, query, body)
 
     # -Class Methods
