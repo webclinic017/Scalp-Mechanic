@@ -43,6 +43,12 @@ class Session:
     async def __ainit__(self) -> None:
         self._aiosession = aiohttp.ClientSession(loop=self._loop, raise_for_status=True)
 
+    def __repr__(self) -> str:
+        str_ = f"Session(authenticated={self.authenticated.is_set()}"
+        if self.authenticated.is_set():
+            str_ += f", duration={self.token_duration}"
+        return str_ + ")"
+
     # -Instance Methods: Private
     async def _update_authorization(
         self, res: aiohttp.ClientResponse
@@ -88,13 +94,22 @@ class Session:
         res = await self._aiosession.post(urls.http_auth_renew)
         await self._update_authorization(res)
 
-    async def request_access_token(self, auth: CredentialAuthDict, test) -> int:
+    async def request_access_token(
+        self, auth: CredentialAuthDict, *,
+        account_websockets: tuple[WebSocket] | None = None,
+        market_websockets: tuple[WebSocket] | None = None,
+    ) -> int:
         '''Request Session authorization'''
         log.debug("Requesting session token")
         res = await self._aiosession.post(urls.http_auth_request, json=auth)
         res_dict = await self._update_authorization(res)
         # -WebSockets
-        await test.authorize(res_dict['mdAccessToken'])
+        if account_websockets:
+            for account_websocket in account_websockets:
+                await account_websocket.authorize(res_dict['accessToken'])
+        if market_websockets:
+            for market_websocket in market_websockets:
+                await market_websocket.authorize(res_dict['mdAccessToken'])
         return res_dict['userId']
 
     # -Property
@@ -119,22 +134,38 @@ class WebSocket:
         self, url: str, websocket: ClientWebSocket, *,
         loop: AbstractEventLoop | None = None
     ) -> WebSocket:
+        self.id: int = WebSocket.id
+        WebSocket.id += 1
         self.url: str = url
         self.connected: asyncio.Event = asyncio.Event()
         self.authenticated: asyncio.Event = asyncio.Event()
         self._request: int = 0
         self._aiowebsocket: ClientWebSocket = websocket
         self._loop: AbstractEventLoop = loop if loop else asyncio.get_event_loop()
-        self._loop.create_task(self.__ainit__(), name=f"websocket-init{self.id}")
-        WebSocket.id += 1
+        self._loop.create_task(self.__ainit__(), name=f"websocket[{self.id}]-init")
 
     # -Dunder Methods
     async def __ainit__(self) -> None:
         if await self._aiowebsocket.receive_str() != 'o':
             raise WebSocketOpenException(self.url)
         self.connected.set()
+        self._loop.create_task(
+            self._heartbeat(), name=f"websocket[{self.id}]-heartbeat"
+        )
+
+    def __repr__(self) -> str:
+        return (
+            f"WebSocket(url={self.url}, connected={self.connected.is_set()},"
+            f"authenticated={self.authenticated.is_set()})"
+        )
 
     # -Instance Methods: Private
+    async def _heartbeat(self) -> None:
+        '''Send heartbeat packet to aiowebsocket'''
+        while self.connected.is_set():
+            await asyncio.sleep(2.5)
+            await self._aiowebsocket.send_str("[]")
+
     async def _socket_recieve(self) -> dict[str, str]:
         '''Recieve dictionary object from aiowebsocket'''
         ws_res = await self._aiowebsocket.receive()
@@ -159,6 +190,22 @@ class WebSocket:
     async def close(self) -> None:
         if self._aiowebsocket:
             await self._aiowebsocket.close()
+
+    async def request(
+        self, url: str, *, body: dict[str, str] | None = None, **kwargs
+    ) -> None:
+        ''''''
+        query = ""
+        body = json.dumps(body) if body else ""
+        if kwargs:
+            fields = []
+            for key, val in kwargs.items():
+                if isinstance(val, list):
+                    val = ','.join(str(i) for i in val)
+                fields.append(f"{key}={val}")
+            query = '&'.join(fields)
+        req = f"{url}\n{self._request}\n{query}\n{body}"
+        print(req)
 
     # -Class Methods
     @classmethod
