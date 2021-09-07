@@ -1,5 +1,5 @@
 ##-------------------------------##
-## [Tradovate] Scalp-Mechanic    ##
+## [Tradovate]Scalp-Mechanic     ##
 ## Written By: Ryan Smith        ##
 ##-------------------------------##
 ## Tradovate Client Class        ##
@@ -109,7 +109,7 @@ class Client(Profile):
     async def process_message(self, websocket: WebSocket) -> None:
         '''Task for WebSocket loop'''
         while websocket.connected.is_set():
-            msg = await websocket.poll_message()
+            msg = (await websocket.poll_message())[0]
             if not msg:
                 continue
             print(msg)
@@ -132,9 +132,32 @@ class Client(Profile):
             self._loop.run_until_complete(self.close())
             self._loop.close()
 
+    async def subscribe_symbol(
+        self, id_: int | str, *, dom: bool = True, histogram: bool = True
+    ) -> None:
+        '''Add symbol to market subscription'''
+        if not self._mdlive:
+            return None
+        # -Market
+        await self._mdlive.request(urls.wss_market_sub, body={"symbol": id_})
+        # -DOM
+        if not dom:
+            return None
+        await self._mdlive.request(urls.wss_market_dom_sub, body={"symbol": id_})
+        # -Histogram
+        if not histogram:
+            return None
+        await self._mdlive.request(urls.wss_market_histogram_sub, body={"symbol": id_})
+
     async def sync_websockets(self) -> None:
         for websocket in self._websockets_account:
             await websocket.request(urls.wss_user_sync, body={'users': [self.id]})
+
+    async def unsubscribe_symbol(self, id_: int | str) -> None:
+        '''Remove symbol from market subscription'''
+        await self._mdlive.request(urls.wss_market_usub, body={"symbol": id_})
+        await self._mdlive.request(urls.wss_market_dom_usub, body={"symbol": id_})
+        await self._mdlive.request(urls.wss_market_histogram_usub, body={"symbol": id_})
 
     # -Properties: Private
     @property
