@@ -13,6 +13,7 @@ $200/day + commissions
 """
 
 ## Imports
+#import logging
 import logging
 from configparser import ConfigParser
 from datetime import date
@@ -36,38 +37,11 @@ class Scalp_Mechanic(Client):
     """Scalp-Mechanic Tradovate Client"""
 
     async def on_connect(self) -> None:
-        print("On Connect")
-
-    async def on_ready(self) -> None:
-        print("On Ready")
-
-    async def on_alert(self, alert) -> None:
-        print("On Alert")
-        print(f"Alert Data: {alert}")
-
-    async def on_market_update(self, market) -> None:
-        print("On Market Update")
-        print(f"Market Data: {market}")
-
-    async def on_dom_update(self, dom) -> None:
-        print("On DOM Update")
-        print(f"DOM Data: {dom}")
-
-    async def on_chart_update(self, chart) -> None:
-        print("On Chart Update")
-        print(f"Chart Data: {chart}")
-
-    async def on_histogram_update(self, histogram) -> None:
-        print("On Histogram Update")
-        print(f"Histogram Data: {histogram}")
-
-    async def on_order_update(self, order) -> None:
-        print("On Order Update")
-        print(f"Order Data: {order}")
+        print("Connected Successfully")
 
 
 ## Body
-scalp_mechanic = Scalp_Mechanic()
+client = Scalp_Mechanic()
 credentials.read("account.ini")
 authorization_dict = {
     'name': credentials['authentication']['username'],
@@ -78,4 +52,4 @@ authorization_dict = {
     'appID': credentials['application']['name'],
     'appVersion': credentials['application']['version'],
 }
-scalp_mechanic.run(authorization_dict)
+client.run(authorization_dict)
