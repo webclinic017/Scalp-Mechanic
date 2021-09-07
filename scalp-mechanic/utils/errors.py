@@ -1,5 +1,5 @@
 ##-------------------------------##
-## [Tradovate] Scalp-Mechanic    ##
+## [Tradovate]Scalp-Mechanic     ##
 ## Written By: Ryan Smith        ##
 ##-------------------------------##
 ## Tradovate Exceptions          ##
@@ -59,3 +59,11 @@ class WebSocketAuthorizationException(Exception):
         super().__init__(
             f"Unable to authorize websocket with address: {url}. Token used: {token}."
         )
+
+
+class WebSocketClosedException(Exception):
+    """WebSocket exception for already closed"""
+
+    # -Constructor
+    def __init__(self, url: str) -> WebSocketOpenException:
+        super().__init__(f"Connection with address: {url} has expired.")
